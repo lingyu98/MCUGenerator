@@ -17,6 +17,7 @@ def parse(cfg):
     cfg.model = GPT(cfg.vocab_size, 192, 6, 6, cfg.max_T).to(device)
     #cfg.model = TransformerModel(cfg.vocab_size, 192, 6, 192, 6, 0.1).to(device)
     cfg.optimizer = torch.optim.AdamW(cfg.model.parameters(), lr=cfg.lr, weight_decay=cfg.wd)
+    cfg.scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(cfg.optimizer, cfg.epochs, eta_min=0, last_epoch=- 1, verbose=False)
 
     return cfg
 
@@ -63,7 +64,8 @@ def sample(cfg):
     preds = []
     cond = x
     for i in range(10):
-        out = cfg.model(cond).argmax(2)[0, -1:]
+        out = cfg.model(cond)[0, -1, :].softmax(0)#.argmax(2)[0, -1:]
+        out = torch.multinomial(out, 1)
         cond = torch.cat([cond[:, 1:], out.unsqueeze(0)], dim=1)
         preds.append(out)
     

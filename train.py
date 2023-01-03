@@ -42,6 +42,7 @@ def train(cfg):
                 running_loss = 0
 
         print('EP %d| PP=%.2f' %(ep, pp))
+        cfg.scheduler.step()
 
 
 
@@ -82,7 +83,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=2.5e-4, help='learning rate')
     parser.add_argument('--wd', type=float, default=0.01, help='weight decay')
 
-    parser.add_argument('--log_freq', type=int, default=100, help='frequency of logging')
+    parser.add_argument('--log_freq', type=int, default=10, help='frequency of logging')
     parser.add_argument('--save_freq', type=int, default=100, help='frequency of saving model')
     parser.add_argument('--run_name', type=str, default='test1224')
     parser.add_argument('--datafile', type=str, default='data/final_data.txt')
