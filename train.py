@@ -10,6 +10,7 @@ from utils import parse, batchify, sample
 def train(cfg):
 
     cfg = parse(cfg)
+    batch_sl = (cfg.max_T+1)  * cfg.bs_train
 
     for ep in range(cfg.epochs):
         pp, p, running_loss = 0, 0, 0
@@ -19,8 +20,8 @@ def train(cfg):
         while True:
             cfg.model.train()
             
-            if p + cfg.max_T + 1 >= len(cfg.data): break
-            seq = [cfg.char_to_ix[ch] for ch in cfg.data[p : p + (cfg.max_T+1) * cfg.bs_train]]
+            if p + batch_sl + 1 >= len(cfg.data): break
+            seq = [cfg.char_to_ix[ch] for ch in cfg.data[p : p + batch_sl]]
             x, y = batchify(seq, cfg.max_T, cfg.bs_train)
 
             out = cfg.model(x)
@@ -31,11 +32,11 @@ def train(cfg):
             cfg.optimizer.step()
 
             pp += torch.exp(loss)
-            p += cfg.max_T + cfg.bs_train
+            p +=  batch_sl
             running_loss += loss.item()
 
-            it = p // (cfg.max_T + cfg.bs_train)
-            if p % (100 * (cfg.max_T + cfg.bs_train)) == 0:
+            it = p // batch_sl
+            if p % (cfg.log_freq * batch_sl) == 0:
                 print('Iter %d| Loss=%.3f' %(it, running_loss))
                 sample(cfg)
                 running_loss = 0
@@ -72,16 +73,16 @@ if __name__ == '__main__':
 
     parser.add_argument('--arch', type=str, default='resnet18')
 
-    parser.add_argument('--max_T', type=int, default=512)
+    parser.add_argument('--max_T', type=int, default=50)
 
-    parser.add_argument('--bs_train', type=int, default=64, help='training batchsize')
+    parser.add_argument('--bs_train', type=int, default=4, help='training batchsize')
     parser.add_argument('--bs_test', type=int, default=128, help='testing batchsize')
 
     parser.add_argument('--epochs', type=int, default=100, help='number of epochs')
     parser.add_argument('--lr', type=float, default=2.5e-4, help='learning rate')
     parser.add_argument('--wd', type=float, default=0.01, help='weight decay')
 
-    parser.add_argument('--log_freq', type=int, default=1, help='frequency of logging')
+    parser.add_argument('--log_freq', type=int, default=100, help='frequency of logging')
     parser.add_argument('--save_freq', type=int, default=100, help='frequency of saving model')
     parser.add_argument('--run_name', type=str, default='test1224')
     parser.add_argument('--datafile', type=str, default='data/final_data.txt')

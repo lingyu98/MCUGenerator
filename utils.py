@@ -14,7 +14,7 @@ def parse(cfg):
     cfg.ix_to_char = ix_to_char
 
     cfg.loss_fn = torch.nn.CrossEntropyLoss()
-    cfg.model = GPT(cfg.vocab_size, 768, 12, 12, cfg.max_T).to(device)
+    cfg.model = GPT(cfg.vocab_size, 192, 6, 6, cfg.max_T).to(device)
     #cfg.model = TransformerModel(cfg.vocab_size, 192, 6, 192, 6, 0.1).to(device)
     cfg.optimizer = torch.optim.AdamW(cfg.model.parameters(), lr=cfg.lr, weight_decay=cfg.wd)
 
@@ -22,7 +22,7 @@ def parse(cfg):
 
 def load_data(datafile):
     #data = open(datafile, 'r').read() # should be simple plain text file
-    tokenizer = get_tokenizer("basic_english")
+    tokenizer = get_tokenizer("spacy")
     with open(datafile) as file:
         data = tokenizer(file.read())
 
@@ -46,7 +46,7 @@ def batchify(seq, max_T, bs):
     '''
     torch._assert(len(seq)==(max_T+1) * bs, 'sequence length must = max_T + batchsize')
     x = torch.tensor(seq).view(bs, max_T+1)
-    inputs, targets = x[:, :-1].to(device), x[:, 1:]
+    inputs, targets = x[:, :-1].to(device), x[:, 1:].to(device)
 
     return inputs, targets
     
@@ -54,8 +54,8 @@ def batchify(seq, max_T, bs):
 def sample(cfg):
     ## a one-hot vector
     print('Sampling ... ')
-    p = torch.randint(0, 10000, (1,))
-    seq = [cfg.char_to_ix[ch] for ch in cfg.data[p : p + cfg.max_T * cfg.bs_train]]
+    p = torch.randint(0, len(cfg.data) - (cfg.max_T+1) * cfg.bs_train - 1 , (1,))
+    seq = [cfg.char_to_ix[ch] for ch in cfg.data[p : p + (cfg.max_T+1) * cfg.bs_train]]
     x, _ = batchify(seq, cfg.max_T, cfg.bs_train)
     x = x[0:1]
 
@@ -63,7 +63,7 @@ def sample(cfg):
     preds = []
     cond = x
     for i in range(10):
-        out = cfg.model.predict_next(cond).argmax(1)
+        out = cfg.model(cond).argmax(2)[0, -1:]
         cond = torch.cat([cond[:, 1:], out.unsqueeze(0)], dim=1)
         preds.append(out)
     
