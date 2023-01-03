@@ -20,13 +20,11 @@ def train(cfg):
             cfg.model.train()
             
             if p + cfg.max_T + 1 >= len(cfg.data): break
-            seq = [cfg.char_to_ix[ch] for ch in cfg.data[p : p + cfg.max_T+ cfg.bs_train]]
+            seq = [cfg.char_to_ix[ch] for ch in cfg.data[p : p + (cfg.max_T+1) * cfg.bs_train]]
             x, y = batchify(seq, cfg.max_T, cfg.bs_train)
 
-            out = cfg.model.predict_next(x)
-            loss = cfg.loss_fn(out, y)
-
-            
+            out = cfg.model(x)
+            loss = cfg.loss_fn(out.contiguous().view(cfg.bs_train * cfg.max_T, -1), y.contiguous().view(cfg.bs_train * cfg.max_T))
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(cfg.model.parameters(), 0.1)
@@ -74,14 +72,14 @@ if __name__ == '__main__':
 
     parser.add_argument('--arch', type=str, default='resnet18')
 
-    parser.add_argument('--max_T', type=int, default=100)
+    parser.add_argument('--max_T', type=int, default=512)
 
-    parser.add_argument('--bs_train', type=int, default=128, help='training batchsize')
+    parser.add_argument('--bs_train', type=int, default=64, help='training batchsize')
     parser.add_argument('--bs_test', type=int, default=128, help='testing batchsize')
 
     parser.add_argument('--epochs', type=int, default=100, help='number of epochs')
-    parser.add_argument('--lr', type=float, default=3e-4, help='learning rate')
-    parser.add_argument('--wd', type=float, default=0.1, help='weight decay')
+    parser.add_argument('--lr', type=float, default=2.5e-4, help='learning rate')
+    parser.add_argument('--wd', type=float, default=0.01, help='weight decay')
 
     parser.add_argument('--log_freq', type=int, default=1, help='frequency of logging')
     parser.add_argument('--save_freq', type=int, default=100, help='frequency of saving model')

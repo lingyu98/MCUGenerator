@@ -7,6 +7,8 @@ import torch.nn.functional as F
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torch.utils.data import dataset
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 class TransformerModel(nn.Module):
 
     def __init__(self, ntoken: int, d_model: int, nhead: int, d_hid: int,
@@ -53,7 +55,7 @@ class TransformerModel(nn.Module):
 
 def generate_square_subsequent_mask(sz: int) -> Tensor:
     """Generates an upper-triangular matrix of -inf, with zeros on diag."""
-    return torch.triu(torch.ones(sz, sz) * float('-inf'), diagonal=1)
+    return torch.triu(torch.ones(sz, sz) * float('-inf'), diagonal=1).to(device)
 
 
 class PositionalEncoding(nn.Module):
