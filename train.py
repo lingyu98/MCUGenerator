@@ -2,84 +2,10 @@
 Adapted from 
 Minimal character-level Vanilla RNN model by Andrej Karpathy (@karpathy)
 """
-from torchtext.data import get_tokenizer
 import argparse
-import re
-import numpy as np
 import torch
-from models.transformer import GPT
+from utils import parse, batchify, sample
 
-
-def parse(cfg):
-    data, data_size, vocab_size, char_to_ix, ix_to_char = load_data(configs.datafile)
-
-    cfg.data = data
-    cfg.vocab_size = vocab_size
-    cfg.char_to_ix = char_to_ix
-    cfg.ix_to_char = ix_to_char
-
-    cfg.loss_fn = torch.nn.CrossEntropyLoss()
-    cfg.model = GPT(cfg.vocab_size, 192, 6, 6, cfg.max_T)
-    cfg.optimizer = torch.optim.AdamW(cfg.model.parameters(), lr=cfg.lr, weight_decay=cfg.wd)
-
-    return cfg
-
-def load_data(datafile):
-    #data = open(datafile, 'r').read() # should be simple plain text file
-    tokenizer = get_tokenizer("basic_english")
-    with open(datafile) as file:
-        data = tokenizer(file.read())
-
-
-    # use set() to count the vocab size
-    chars = list(set(data))
-    data_size, vocab_size = len(data), len(chars)
-    print('data has %d words, %d unique.' % (data_size, vocab_size))
-
-    # dictionary to convert char to idx, idx to char
-    char_to_ix = { ch:i for i,ch in enumerate(chars) }
-    ix_to_char = { i:ch for i,ch in enumerate(chars) }
-
-    return data, data_size, vocab_size, char_to_ix, ix_to_char 
-
-def batchify(seq, max_T, bs):
-    '''
-    Convert list of tokens into batches of inputs and targets
-    seq: list with length max_T + bs
-    '''
-    torch._assert(len(seq)==max_T + bs, 'sequence length must be larger than max_T x batchsize')
-    x = torch.tensor(seq)
-    zs = torch.cat([x.roll(shifts=-i, dims=0).unsqueeze(0) for i in range(bs)], 0)
-    inputs = zs[:, :max_T]
-    targets = zs[:, max_T]
-
-    return inputs, targets
-    
-
-# def sample(configs):
-#     ## a one-hot vector
-#     x = torch.zeros((configs.vocab_size, 1))
-#     x[seed_ix] = 1
-
-#     ixes = []
-#     for t in range(n):
-#         ## self.h = np.tanh(np.dot(self.W_hh, self.h) + np.dot(self.W_xh, x))
-#         h = np.tanh(np.dot(Wxh, x) + np.dot(Whh, h) + bh)
-#         ## y = np.dot(self.W_hy, self.h)
-#         y = np.dot(Why, h) + by
-#         ## softmax
-#         p = np.exp(y) / np.sum(np.exp(y))
-#         ## sample according to probability distribution
-#         ix = np.random.choice(range(vocab_size), p=p.ravel())
-
-#         ## update input x
-#         ## use the new sampled result as last input, then predict next char again.
-#         x = np.zeros((vocab_size, 1))
-#         x[ix] = 1
-
-#         ixes.append(ix)
-
-#     return ixes
 
 def train(cfg):
 
@@ -110,11 +36,13 @@ def train(cfg):
             running_loss += loss.item()
 
             it = p // (cfg.max_T + cfg.bs_train)
-            if p % (10 * (cfg.max_T + cfg.bs_train)) == 0:
+            if p % (100 * (cfg.max_T + cfg.bs_train)) == 0:
                 print('Iter %d| Loss=%.3f' %(it, running_loss))
+                sample(cfg)
                 running_loss = 0
 
         print('EP %d| PP=%.2f' %(ep, pp))
+
 
 
 
