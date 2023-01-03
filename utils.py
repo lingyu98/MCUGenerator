@@ -2,6 +2,7 @@ import torch
 from torchtext.data import get_tokenizer
 from models.transformer import GPT
 
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 def parse(cfg):
     data, data_size, vocab_size, char_to_ix, ix_to_char = load_data(cfg.datafile)
@@ -12,7 +13,7 @@ def parse(cfg):
     cfg.ix_to_char = ix_to_char
 
     cfg.loss_fn = torch.nn.CrossEntropyLoss()
-    cfg.model = GPT(cfg.vocab_size, 192, 6, 6, cfg.max_T)
+    cfg.model = GPT(cfg.vocab_size, 192, 6, 6, cfg.max_T).to(device)
     cfg.optimizer = torch.optim.AdamW(cfg.model.parameters(), lr=cfg.lr, weight_decay=cfg.wd)
 
     return cfg
@@ -44,8 +45,8 @@ def batchify(seq, max_T, bs):
     torch._assert(len(seq)==max_T + bs, 'sequence length must be larger than max_T x batchsize')
     x = torch.tensor(seq)
     zs = torch.cat([x.roll(shifts=-i, dims=0).unsqueeze(0) for i in range(bs)], 0)
-    inputs = zs[:, :max_T]
-    targets = zs[:, max_T]
+    inputs = zs[:, :max_T].to(device)
+    targets = zs[:, max_T].to(device)
 
     return inputs, targets
     
@@ -53,7 +54,7 @@ def batchify(seq, max_T, bs):
 def sample(cfg):
     ## a one-hot vector
     print('Sampling ... ')
-    p = torch.randint(0, 500, (1,))
+    p = torch.randint(0, 10000, (1,))
     seq = [cfg.char_to_ix[ch] for ch in cfg.data[p : p + cfg.max_T+ cfg.bs_train]]
     x, _ = batchify(seq, cfg.max_T, cfg.bs_train)
     x = x[0:1]

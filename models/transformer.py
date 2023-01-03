@@ -63,11 +63,12 @@ class MultiHeadAttention(nn.Module):
         scores = (q @ k.transpose(-2, -1)) / math.sqrt(k.shape[-1])
 
         if causal:
-            causal_mask = torch.ones(self.max_T, self.max_T)
+            causal_mask = torch.ones(self.max_T, self.max_T).to(device)
             causal_mask = torch.tril(causal_mask).view(1, 1, self.max_T, self.max_T) # [1, 1, T, T]
             scores = scores.masked_fill(causal_mask==0, float('-inf'))
 
         if mask is not None:
+            mask = mask.to(device)
             torch._assert(mask.shape[-2:]==scores.shape[-2:], 'mask shape must be [_, _, T, T]')
             scores = scores.masked_fill(mask==0, float('-inf')) # [B, TxT]
 
@@ -218,7 +219,7 @@ class GPT(nn.Module):
         super().__init__()
         self.N = N
         self.tok_emb = Embedding(vocab_size, d_model)
-        self.pos_emb = LearnedPositionalEncoder(d_model, max_T)
+        self.pos_emb = LearnedPositionalEncoder(d_model, max_T).to(device)
         self.dropout = nn.Dropout(0.1)
 
         self.layers = get_clones(GPT_Block(heads, d_model, max_T), N)
