@@ -15,6 +15,7 @@ def train(cfg):
         pp, p, running_loss = 0, 0, 0
         cfg.optimizer.zero_grad()
 
+
         while True:
             cfg.model.train()
             

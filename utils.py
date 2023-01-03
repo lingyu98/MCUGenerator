@@ -1,5 +1,6 @@
 import torch
 from torchtext.data import get_tokenizer
+from models.transformer_torch import TransformerModel
 from models.transformer import GPT
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -13,7 +14,8 @@ def parse(cfg):
     cfg.ix_to_char = ix_to_char
 
     cfg.loss_fn = torch.nn.CrossEntropyLoss()
-    cfg.model = GPT(cfg.vocab_size, 192, 6, 6, cfg.max_T).to(device)
+    #cfg.model = GPT(cfg.vocab_size, 192, 6, 6, cfg.max_T).to(device)
+    cfg.model = TransformerModel(cfg.vocab_size, 192, 6, 192, 6, 0.1).to(device)
     cfg.optimizer = torch.optim.AdamW(cfg.model.parameters(), lr=cfg.lr, weight_decay=cfg.wd)
 
     return cfg
