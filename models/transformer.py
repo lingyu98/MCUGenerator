@@ -38,10 +38,11 @@ class LearnedPositionalEncoder(nn.Module):
     def __init__(self, d_model, max_T=80):
         super().__init__()
         self.embed = nn.Embedding(max_T, d_model)
+        self.max_T = max_T
 
     def forward(self, x):
         # x [B, t, E]
-        pos = torch.arange(0, x.shape[1], dtype=torch.long).to(device).unsqueeze(0)
+        pos = torch.arange(0, self.max_T, dtype=torch.long).to(device).unsqueeze(0)
         pos = self.embed(pos)
         return pos
 
@@ -138,7 +139,7 @@ class Encoder(nn.Module):
         super().__init__()
         self.N = N
         self.tok_emb = Embedding(vocab_size, d_model)
-        self.pos_emb = LearnedPositionalEncoder(d_model)
+        self.pos_emb = LearnedPositionalEncoder(d_model, max_T)
         self.dropout = nn.Dropout(0.1)
 
         self.layers = get_clones(EncoderLayer(heads, d_model, max_T), N)
@@ -159,7 +160,7 @@ class Decoder(nn.Module):
         super().__init__()
         self.N = N
         self.tok_emb = Embedding(vocab_size, d_model)
-        self.pos_emb = LearnedPositionalEncoder(d_model)
+        self.pos_emb = LearnedPositionalEncoder(d_model, max_T)
         self.dropout = nn.Dropout(0.1)
 
         self.layers = get_clones(DecoderLayer(heads, d_model, max_T), N)
@@ -217,7 +218,7 @@ class GPT(nn.Module):
         super().__init__()
         self.N = N
         self.tok_emb = Embedding(vocab_size, d_model)
-        self.pos_emb = LearnedPositionalEncoder(d_model)
+        self.pos_emb = LearnedPositionalEncoder(d_model, max_T)
         self.dropout = nn.Dropout(0.1)
 
         self.layers = get_clones(GPT_Block(heads, d_model, max_T), N)
@@ -245,6 +246,10 @@ class GPT(nn.Module):
         x = self.norm(x)
         logits = self.out(x)
         return logits
+
+    def predict_next(self, src):
+        out = self.forward(src)[:, 0, :]
+        return out
 
 if __name__ == '__main__':
     #model = Transformer(100, 100, 32, 1, 2, 10)

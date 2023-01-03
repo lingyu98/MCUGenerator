@@ -19,7 +19,8 @@ def parse(cfg):
     cfg.ix_to_char = ix_to_char
 
     cfg.loss_fn = torch.nn.CrossEntropyLoss()
-    cfg.model = GPT(cfg.vocab_size, 128, 4, 4, cfg.max_T)
+    cfg.model = GPT(cfg.vocab_size, 192, 6, 6, cfg.max_T)
+    cfg.optimizer = torch.optim.AdamW(cfg.model.parameters(), lr=cfg.lr, weight_decay=cfg.wd)
 
     return cfg
 
@@ -36,10 +37,24 @@ def load_data(datafile):
     print('data has %d words, %d unique.' % (data_size, vocab_size))
 
     # dictionary to convert char to idx, idx to char
-    char_to_ix = { ch:i+1 for i,ch in enumerate(chars) }
-    ix_to_char = { i+1:ch for i,ch in enumerate(chars) }
+    char_to_ix = { ch:i for i,ch in enumerate(chars) }
+    ix_to_char = { i:ch for i,ch in enumerate(chars) }
 
     return data, data_size, vocab_size, char_to_ix, ix_to_char 
+
+def batchify(seq, max_T, bs):
+    '''
+    Convert list of tokens into batches of inputs and targets
+    seq: list with length max_T + bs
+    '''
+    torch._assert(len(seq)==max_T + bs, 'sequence length must be larger than max_T x batchsize')
+    x = torch.tensor(seq)
+    zs = torch.cat([x.roll(shifts=-i, dims=0).unsqueeze(0) for i in range(bs)], 0)
+    inputs = zs[:, :max_T]
+    targets = zs[:, max_T]
+
+    return inputs, targets
+    
 
 # def sample(configs):
 #     ## a one-hot vector
@@ -69,13 +84,39 @@ def load_data(datafile):
 def train(cfg):
 
     cfg = parse(cfg)
-    for ep in range(cfg.epochs):
-        p = 0
-        # prepare inputs (we're sweeping from left to right in steps seq_length long)
-        if p + cfg.max_T + 1 >= len(cfg.data): pass
 
-        inputs = [cfg.char_to_ix[ch] for ch in cfg.data[p : p + cfg.max_T]]
-        targets = [cfg.char_to_ix[ch] for ch in cfg.data[p + 1 : p + cfg.max_T + 1]]
+    for ep in range(cfg.epochs):
+        pp, p, running_loss = 0, 0, 0
+        cfg.optimizer.zero_grad()
+
+        while True:
+            cfg.model.train()
+            
+            if p + cfg.max_T + 1 >= len(cfg.data): break
+            seq = [cfg.char_to_ix[ch] for ch in cfg.data[p : p + cfg.max_T+ cfg.bs_train]]
+            x, y = batchify(seq, cfg.max_T, cfg.bs_train)
+
+            out = cfg.model.predict_next(x)
+            loss = cfg.loss_fn(out, y)
+
+            
+
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(cfg.model.parameters(), 0.1)
+            cfg.optimizer.step()
+
+            pp += torch.exp(loss)
+            p += cfg.max_T + cfg.bs_train
+            running_loss += loss.item()
+
+            it = p // (cfg.max_T + cfg.bs_train)
+            if p % (10 * (cfg.max_T + cfg.bs_train)) == 0:
+                print('Iter %d| Loss=%.3f' %(it, running_loss))
+                running_loss = 0
+
+        print('EP %d| PP=%.2f' %(ep, pp))
+
+
 
         # sample from the model now and then
         # if n % 100 == 0:
@@ -83,17 +124,14 @@ def train(cfg):
         #     txt = ''.join(ix_to_char[ix] for ix in sample_ix)
         #     print('---- sample -----')
         #     print('----\n %s \n----' % (txt, ))
-        print(inputs)
-        print(targets)
-        return 0
+
 
 
         #if n % 100 == 0:
         #    print 'iter %d, loss: %f' % (n, smooth_loss) # print progress
 
 
-        p += cfg.max_T # move data pointer
-        n += 1 # iteration counter 
+
 
 
 if __name__ == '__main__':
@@ -107,14 +145,14 @@ if __name__ == '__main__':
 
     parser.add_argument('--arch', type=str, default='resnet18')
 
-    parser.add_argument('--max_T', type=int, default=25)
+    parser.add_argument('--max_T', type=int, default=100)
 
-    parser.add_argument('--bs_train', type=int, default=128, help='training batchsize')
+    parser.add_argument('--bs_train', type=int, default=16, help='training batchsize')
     parser.add_argument('--bs_test', type=int, default=128, help='testing batchsize')
 
     parser.add_argument('--epochs', type=int, default=100, help='number of epochs')
-    parser.add_argument('--lr', type=float, default=1e-4, help='learning rate')
-    parser.add_argument('--wd', type=float, default=1e-4, help='weight decay')
+    parser.add_argument('--lr', type=float, default=3e-4, help='learning rate')
+    parser.add_argument('--wd', type=float, default=0.1, help='weight decay')
 
     parser.add_argument('--log_freq', type=int, default=1, help='frequency of logging')
     parser.add_argument('--save_freq', type=int, default=100, help='frequency of saving model')
