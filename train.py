@@ -75,7 +75,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--max_T', type=int, default=100)
 
-    parser.add_argument('--bs_train', type=int, default=16, help='training batchsize')
+    parser.add_argument('--bs_train', type=int, default=128, help='training batchsize')
     parser.add_argument('--bs_test', type=int, default=128, help='testing batchsize')
 
     parser.add_argument('--epochs', type=int, default=100, help='number of epochs')
